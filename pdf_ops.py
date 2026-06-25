@@ -323,15 +323,31 @@ def run_operation(op: str, file_paths: list[str], extra_args: dict = None) -> di
     data = None
     output_path = ""
 
-    # Try to parse the last JSON line from stdout
-    for line in reversed(stdout.strip().split("\n")):
-        line = line.strip()
-        if line.startswith("{"):
-            try:
-                data = json.loads(line)
-                break
-            except json.JSONDecodeError:
-                continue
+    # Try to parse JSON from stdout (handle pretty-printed multi-line JSON)
+    raw = stdout.strip()
+    if raw.startswith("{"):
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            # Fallback: try to find a complete JSON object spanning lines
+            # Find first { and last } in the output
+            start = raw.find("{")
+            end = raw.rfind("}")
+            if start >= 0 and end > start:
+                try:
+                    data = json.loads(raw[start:end+1])
+                except json.JSONDecodeError:
+                    data = None
+    else:
+        # Line-by-line fallback for single-line JSON outputs
+        for line in reversed(raw.split("\n")):
+            line = line.strip()
+            if line.startswith("{"):
+                try:
+                    data = json.loads(line)
+                    break
+                except json.JSONDecodeError:
+                    continue
 
     # Determine output path from data
     if data:
