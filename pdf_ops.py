@@ -12,14 +12,16 @@ import uuid
 from pathlib import Path
 from datetime import datetime, timedelta
 
-# Path to the pdf-agent script
+# Path to the pdf-agent script — local copy bundled in repo, or env override
+_SCRIPT_DIR = Path(__file__).parent
 AGENT_SCRIPT = os.environ.get(
     "PDF_AGENT_SCRIPT",
-    str(Path.home() / ".hermes/skills/productivity/pdf-agent/scripts/pdf_agent.py")
+    str(_SCRIPT_DIR / "pdf_agent.py")
 )
 
-# Hermes venv Python
-AGENT_PYTHON = str(Path.home() / ".hermes/hermes-agent/venv/bin/python3")
+# Python — use current venv python, fallback to system
+import sys
+AGENT_PYTHON = os.environ.get("PDF_AGENT_PYTHON", sys.executable)
 
 UPLOAD_DIR = Path(__file__).parent / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
