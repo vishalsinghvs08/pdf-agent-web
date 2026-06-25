@@ -249,9 +249,15 @@ def run_operation(op: str, file_paths: list[str], extra_args: dict = None) -> di
     else:
         cmd.append(file_paths[0])
 
-    # Add common args
+    # Add common args (only for commands that accept -o)
+    OUTPUT_OPS = {"merge", "split", "remove-pages", "extract-pages", "rotate", "reorder",
+                  "crop", "flatten", "compress", "encrypt", "decrypt", "redact",
+                  "sanitize", "repair", "linearize", "watermark", "esign", "fill-form",
+                  "set-metadata", "add-pagenum", "pdf-to-word", "pdf-to-excel",
+                  "pdf-to-html", "images-to-pdf", "word-to-pdf", "excel-to-pdf",
+                  "create-pdf", "extract-text", "ocr"}
     out_path = extra.get("output", "")
-    if out_path:
+    if out_path and resolved_op in OUTPUT_OPS:
         cmd.extend(["-o", out_path])
 
     # Add operation-specific args
