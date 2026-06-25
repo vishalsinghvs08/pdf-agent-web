@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Pricing — PDF Agent{% endblock %}
+
+{% block content %}
+<div style="text-align:center;padding:40px 0 20px">
+    <h1>Simple, transparent pricing</h1>
+    <p class="subtitle">
+        Start free. Upgrade when you need advanced features.
+    </p>
+</div>
+
+<div class="pricing-grid">
+    <div class="pricing-card">
+        <h3>Free</h3>
+        <div class="price">$0<span>/forever</span></div>
+        <p style="color:#888;font-size:14px">For occasional PDF tasks</p>
+        <ul class="pricing-features">
+            <li>Merge, split, compress PDFs</li>
+            <li>Extract text, pages, images</li>
+            <li>Rotate, reorder, crop pages</li>
+            <li>PDF info & analysis</li>
+            <li>Convert PDF to images</li>
+            <li><strong>40+ operations total</strong></li>
+            <li style="color:#666">❌ No OCR, redaction, encryption</li>
+            <li style="color:#666">❌ No PDF to Word/Excel</li>
+            <li style="color:#666">❌ No watermark, e-sign, forms</li>
+        </ul>
+        <a href="/" class="btn btn-outline" style="width:100%;justify-content:center">Get Started</a>
+    </div>
+
+    <div class="pricing-card pro">
+        <h3>Pro</h3>
+        <div class="price">$4.99<span>/month</span></div>
+        <p style="color:#888;font-size:14px">Unlock everything</p>
+        <ul class="pricing-features">
+            <li>All Free features</li>
+            <li>🔍 OCR scanned PDFs</li>
+            <li>🖊️ Redact sensitive data (SSN, CC, etc.)</li>
+            <li>🔒 Encrypt & decrypt PDFs</li>
+            <li>📝 Convert PDF ↔ Word, Excel, HTML</li>
+            <li>✍️ E-sign & fill forms</li>
+            <li>💧 Watermark documents</li>
+            <li>🧹 Sanitize metadata</li>
+            <li><strong>All 40+ operations</strong></li>
+        </ul>
+        {% if is_pro %}
+            <div class="btn btn-pro" style="width:100%;justify-content:center;opacity:0.7;cursor:default">✅ Active</div>
+        {% else %}
+            <form action="/create-checkout-session" method="POST">
+                <button type="submit" class="btn btn-pro" style="width:100%;justify-content:center">
+                    Upgrade to Pro
+                </button>
+            </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card" style="text-align:center;max-width:600px;margin:0 auto">
+    <h3 style="margin-top:0">What's included in Pro?</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left;margin-top:20px">
+        <div><span style="color:#6c5ce7">✓</span> OCR scanned PDFs</div>
+        <div><span style="color:#6c5ce7">✓</span> Redact SSN, CC, emails</div>
+        <div><span style="color:#6c5ce7">✓</span> Encrypt/Decrypt</div>
+        <div><span style="color:#6c5ce7">✓</span> PDF ↔ Word</div>
+        <div><span style="color:#6c5ce7">✓</span> PDF ↔ Excel</div>
+        <div><span style="color:#6c5ce7">✓</span> PDF ↔ HTML</div>
+        <div><span style="color:#6c5ce7">✓</span> E-sign documents</div>
+        <div><span style="color:#6c5ce7">✓</span> Fill PDF forms</div>
+        <div><span style="color:#6c5ce7">✓</span> Watermark pages</div>
+        <div><span style="color:#6c5ce7">✓</span> Page numbers</div>
+        <div><span style="color:#6c5ce7">✓</span> Flatten PDFs</div>
+        <div><span style="color:#6c5ce7">✓</span> Sanitize metadata</div>
+        <div><span style="color:#6c5ce7">✓</span> Repair PDFs</div>
+        <div><span style="color:#6c5ce7">✓</span> Linearize for web</div>
+        <div><span style="color:#6c5ce7">✓</span> Batch operations</div>
+        <div><span style="color:#6c5ce7">✓</span> Create PDFs from text</div>
+    </div>
+</div>
+{% endblock %}

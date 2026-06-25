@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}PDF Agent — Process PDFs by Chat{% endblock %}
+
+{% block content %}
+<div style="text-align:center;padding:40px 0 20px">
+    <h1>Your PDF, just describe what to do</h1>
+    <p class="subtitle">
+        Upload a PDF, tell the agent what you need — merge, split, OCR, redact, convert, encrypt, and more.
+        Free for basic operations.
+    </p>
+</div>
+
+<div class="card" style="margin-bottom:24px">
+    <h2 style="margin-top:0">1. Upload</h2>
+
+    <!-- Drop zone -->
+    <div class="drop-zone" id="drop-zone"
+         hx-post="/upload" hx-target="#file-list" hx-encoding="multipart/form-data"
+         hx-trigger="drop files" hx-swap="innerHTML">
+        <div class="drop-zone-icon">📄</div>
+        <p><strong>Drop PDF files here</strong> or click to browse</p>
+        <p style="font-size:12px;margin-top:8px;color:#666">Max 50MB per file</p>
+        <input type="file" name="files" multiple accept=".pdf" style="display:none" id="file-input"
+               hx-post="/upload" hx-target="#file-list" hx-encoding="multipart/form-data"
+               hx-trigger="change" hx-swap="innerHTML">
+    </div>
+
+    <!-- Uploaded files -->
+    <div id="file-list" class="file-list"></div>
+</div>
+
+<div class="card" style="margin-bottom:24px">
+    <h2 style="margin-top:0">2. Choose Operation</h2>
+    <div class="op-grid">
+        {% for op, desc in ops.items() %}
+            <button class="op-btn" onclick="selectOp('{{ op }}', '{{ desc }}')">
+                {{ desc.split(' ')[0] }}<br><small>{{ desc.split(' ')[1:]|join(' ') }}</small>
+            </button>
+        {% endfor %}
+        {% for op, desc in pro_ops.items() %}
+            <button class="op-btn pro{% if not is_pro %} locked{% endif %}"
+                    onclick="{% if is_pro %}selectOp('{{ op }}', '{{ desc }}'){% else %}window.location='/pricing'{% endif %}">
+                {{ desc.split(' ')[0] }}<br><small>{{ desc.split(' ')[1:]|join(' ') }}</small>
+            </button>
+        {% endfor %}
+    </div>
+    <div style="margin-top:12px;font-size:13px;color:#666">
+        Selected: <span id="selected-op">None</span>
+    </div>
+</div>
+
+<div class="card">
+    <h2 style="margin-top:0">3. Chat</h2>
+    <div id="chat-area">
+        <div class="msg msg-bot">
+            👋 Upload a PDF and select an operation above, then tell me what to do!
+        </div>
+    </div>
+
+    <div class="input-row">
+        <input type="text" id="chat-input" placeholder="Describe what you want to do..."
+               autocomplete="off" disabled>
+        <button class="btn btn-primary" id="send-btn" onclick="sendMessage()" disabled>Send</button>
+    </div>
+</div>
+
+<div id="loading" class="show">
+    <div>⏳ Processing...</div>
+</div>
+
+<script>
+    // ── File upload handling ──
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    let uploadedFiles = [];
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const dt = e.dataTransfer;
+        if (dt.files.length) {
+            fileInput.files = dt.files;
+            uploadFiles(dt.files);
+        }
+    });
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) uploadFiles(fileInput.files);
+    });
+
+    async function uploadFiles(files) {
+        const formData = new FormData();
+        for (const f of files) formData.append('files', f);
+
+        const res = await fetch('/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.files) {
+            uploadedFiles = uploadedFiles.concat(data.files);
+            renderFiles();
+            enableChat();
+        }
+    }
+
+    function renderFiles() {
+        const el = document.getElementById('file-list');
+        el.innerHTML = uploadedFiles.map(f =>
+            `<span class="file-chip">
+                📄 ${f.original_name}
+                <span class="remove" onclick="removeFile('${f.id}')">✕</span>
+            </span>`
+        ).join('');
+    }
+
+    function removeFile(id) {
+        uploadedFiles = uploadedFiles.filter(f => f.id !== id);
+        renderFiles();
+        if (!uploadedFiles.length) disableChat();
+    }
+
+    // ── Operation selection ──
+    let selectedOp = null;
+
+    function selectOp(op, desc) {
+        document.querySelectorAll('.op-btn').forEach(b => b.classList.remove('selected'));
+        event.target.closest('.op-btn').classList.add('selected');
+        selectedOp = op;
+        document.getElementById('selected-op').textContent = desc;
+        enableChat();
+    }
+
+    // ── Chat ──
+    function enableChat() {
+        if (uploadedFiles.length && selectedOp) {
+            document.getElementById('chat-input').disabled = false;
+            document.getElementById('send-btn').disabled = false;
+            document.getElementById('chat-input').placeholder = 'Describe what to do...';
+        }
+    }
+
+    function disableChat() {
+        document.getElementById('chat-input').disabled = true;
+        document.getElementById('send-btn').disabled = true;
+    }
+
+    document.getElementById('chat-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+
+    async function sendMessage() {
+        const input = document.getElementById('chat-input');
+        const msg = input.value.trim();
+        if (!msg) return;
+
+        // Show user message
+        addMessage('user', msg);
+        input.value = '';
+
+        // Show loading
+        document.getElementById('loading').classList.add('show');
+
+        // Build form data
+        const formData = new FormData();
+        formData.append('op', selectedOp);
+        for (const f of uploadedFiles) formData.append('file_ids', f.id);
+        // Parse extra params from message (simple: look for common patterns)
+        formData.append('password', extractArg(msg, 'password'));
+        formData.append('patterns', extractArg(msg, 'patterns'));
+        formData.append('keywords', extractArg(msg, 'keywords'));
+        formData.append('text', extractArg(msg, 'text'));
+        formData.append('pages', extractArg(msg, 'pages'));
+        formData.append('term', extractArg(msg, 'term') || msg);
+
+        try {
+            const res = await fetch('/process', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            document.getElementById('loading').classList.remove('show');
+
+            if (data.error === 'pro_required') {
+                addMessage('error', `🔒 ${data.message} — <a href="/pricing" style="color:#a855f7">Upgrade to Pro →</a>`);
+                return;
+            }
+            if (data.error) {
+                addMessage('error', `❌ ${data.error}`);
+                return;
+            }
+
+            let response = data.summary || '✅ Done!';
+
+            if (data.download_id) {
+                response += ` <a href="/download/${data.download_id}" class="btn btn-primary" style="margin-left:8px;font-size:12px;padding:6px 14px">⬇ Download ${data.download_name || 'Result'}</a>`;
+            }
+
+            addMessage('bot', response);
+        } catch (err) {
+            document.getElementById('loading').classList.remove('show');
+            addMessage('error', `❌ Network error: ${err.message}`);
+        }
+    }
+
+    function addMessage(type, html) {
+        const area = document.getElementById('chat-area');
+        const div = document.createElement('div');
+        div.className = `msg msg-${type}`;
+        div.innerHTML = html;
+        area.appendChild(div);
+        area.scrollTop = area.scrollHeight;
+    }
+
+    function extractArg(text, key) {
+        const re = new RegExp(`${key}\\s*[=:]\\s*["']?([^"',\\s]+)["']?`, 'i');
+        const m = text.match(re);
+        return m ? m[1] : '';
+    }
+</script>
+{% endblock %}
